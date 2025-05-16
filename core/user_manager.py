@@ -1,15 +1,33 @@
 # core/user_manager.py
-
 import os
+import sys      # ✅ Added
 import json
 from datetime import datetime
 
 
-
 class UserManager:
-    def __init__(self, data_dir="data/users"):
+    def __init__(self, data_dir=None):
+        """
+        Choose a data directory that works in both dev mode and a
+        PyInstaller‑onefile build.
+
+        • When running from source (`python main.py`):
+            ./data/users
+
+        • When frozen (`swifttype.exe` from PyInstaller):
+            <directory‑containing‑exe>/data/users
+        """
+        if data_dir is None:
+            if getattr(sys, 'frozen', False):                 # ← if bundled
+                base_dir = os.path.dirname(sys.executable)    # folder with the .exe
+            else:                                             # ← normal dev run
+                base_dir = os.path.abspath(".")
+            data_dir = os.path.join(base_dir, "data", "users")
+
         self.data_dir = data_dir
         os.makedirs(self.data_dir, exist_ok=True)
+
+    # ---------- existing methods (unchanged) ----------
 
     def get_user_data_path(self, username):
         return os.path.join(self.data_dir, f"{username}.json")

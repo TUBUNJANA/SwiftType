@@ -6,8 +6,13 @@ from core.lesson_manager import LessonManager
 from core.user_manager import UserManager
 import datetime
 import os
+import sys  # ✅ Added for resource_path support
 
-
+# ✅ Add this utility for PyInstaller-safe path resolution
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    base_path = getattr(sys, '_MEIPASS', os.path.abspath("."))
+    return os.path.join(base_path, relative_path)
 
 class TypingTutorApp:
     def __init__(self, root):
@@ -21,7 +26,9 @@ class TypingTutorApp:
         self.session = None
         self.username = ""
         self.lesson_text = ""
-        icon_path = "assets/favicon.ico"
+
+        # ✅ Use resource_path for the icon
+        icon_path = resource_path("assets/favicon.ico")
         if os.path.exists(icon_path):
             self.root.iconbitmap(icon_path)
         else:
@@ -34,6 +41,10 @@ class TypingTutorApp:
         self.tab_control.add(self.practice_tab, text='Practice')
         self.tab_control.add(self.dashboard_tab, text='Dashboard')
         self.tab_control.pack(expand=1, fill="both")
+
+        self.manage_lessons_tab = tk.Frame(self.tab_control, bg="#f0f4f8")
+        self.tab_control.add(self.manage_lessons_tab, text='Manage Lessons')
+        self.create_manage_lessons_tab()
 
         self.setup_styles()
         self.create_practice_widgets()
@@ -76,8 +87,20 @@ class TypingTutorApp:
             return
 
         self.lesson_text = self.lesson_manager.get_random_lesson()
-        self.clear_practice_tab()  # Clear welcome UI
+        if self.lesson_text.startswith("No valid lessons available"):
+            messagebox.showwarning(
+                "Invalid Lessons",
+                "No valid lessons found. Please add a proper lesson first from the 'Manage Lessons' tab.\n\n"
+                "Rules:\n"
+                "- At least 50 characters\n"
+                "- No double spaces or blank lines\n"
+                "- Must start with a capital letter and end with proper punctuation."
+            )
+            return
+
+        self.clear_practice_tab()
         self.ask_for_time_limit()
+
 
 
     def ask_for_time_limit(self):
@@ -270,3 +293,86 @@ class TypingTutorApp:
         for widget in self.practice_tab.winfo_children():
             widget.destroy()
     
+    def create_manage_lessons_tab(self):
+        frame = self.manage_lessons_tab
+
+        ttk.Label(
+            frame, 
+            text="⚠️ Lesson text must be 50–500 characters, no blank lines, no double spaces, start with a capital letter and end with a punctuation.",
+            wraplength=800,
+            foreground="red",
+            font=("Arial", 10, "italic")
+        ).pack(pady=5)
+
+
+        self.lesson_listbox = tk.Listbox(frame, height=10, width=50)
+        self.lesson_listbox.pack(pady=5)
+
+        self.refresh_lesson_list()
+
+        # Buttons for delete and select
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(pady=5)
+        ttk.Button(button_frame, text="Delete Selected", command=self.delete_selected_lesson).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Refresh List", command=self.refresh_lesson_list).pack(side=tk.LEFT, padx=5)
+
+        # Text area to add new lesson
+        ttk.Label(frame, text="Add New Lesson Text Below:", font=("Arial", 12)).pack(pady=10)
+        self.new_lesson_textbox = tk.Text(frame, height=6, width=80)
+        self.new_lesson_textbox.pack(pady=5)
+
+        # Warning note
+        ttk.Label(frame, text="Note: Keep lesson text between 50 and 500 characters.", foreground="red").pack()
+
+        # Save new lesson
+        ttk.Button(frame, text="Save Lesson", command=self.save_new_lesson).pack(pady=10)
+
+    def refresh_lesson_list(self):
+        self.lesson_listbox.delete(0, tk.END)
+        for lesson_file in self.lesson_manager.lesson_files:
+            self.lesson_listbox.insert(tk.END, lesson_file)
+
+    def delete_selected_lesson(self):
+        selected = self.lesson_listbox.curselection()
+        if not selected:
+            messagebox.showerror("Error", "Please select a lesson to delete.")
+            return
+        lesson_file = self.lesson_listbox.get(selected[0])
+        full_path = os.path.join(self.lesson_manager.lesson_folder, lesson_file)
+        if os.path.exists(full_path):
+            os.remove(full_path)
+            self.lesson_manager.lesson_files.remove(lesson_file)
+            self.refresh_lesson_list()
+            messagebox.showinfo("Deleted", f"Lesson '{lesson_file}' has been deleted.")
+        else:
+            messagebox.showerror("Error", "File does not exist.")
+
+    def save_new_lesson(self):
+        text = self.new_lesson_textbox.get("1.0", tk.END).strip()
+
+        # Validation checks
+        if not (50 <= len(text) <= 500):
+            messagebox.showwarning("Invalid Length", "Lesson text must be between 50 and 500 characters.")
+            return
+
+        if "  " in text:
+            messagebox.showwarning("Spacing Error", "Lesson text contains extra spaces. Please use only one space between words.")
+            return
+
+        if "\n\n" in text:
+            messagebox.showwarning("Paragraph Error", "Lesson should not contain blank lines. Use a single paragraph only.")
+            return
+
+        if not text[0].isupper() or not text.endswith(('.', '!', '?')):
+            messagebox.showwarning("Formatting Warning", "Lesson should start with a capital letter and end with proper punctuation (e.g., period).")
+            return
+
+        # Save lesson
+        filename = f"custom_{len(self.lesson_manager.lesson_files)+1}.txt"
+        filepath = os.path.join(self.lesson_manager.lesson_folder, filename)
+        with open(filepath, 'w') as file:
+            file.write(text)
+        self.lesson_manager.lesson_files.append(filename)
+        self.new_lesson_textbox.delete("1.0", tk.END)
+        self.refresh_lesson_list()
+        messagebox.showinfo("Saved", f"Lesson saved as '{filename}'.")
