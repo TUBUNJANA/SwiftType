@@ -33,7 +33,7 @@ class LessonManager:
         return random.choice(valid_lessons)
     
     def is_valid_lesson(self, text):
-        if not (50 <= len(text) <= 500):
+        if not (50 <= len(text) <= 5000):
             return False
         if "  " in text:
             return False

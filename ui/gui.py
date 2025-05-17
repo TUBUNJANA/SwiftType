@@ -49,6 +49,70 @@ class TypingTutorApp:
         self.setup_styles()
         self.create_practice_widgets()
         self.create_dashboard()
+        
+        self.about_tab = tk.Frame(self.tab_control, bg="#f0f4f8")
+        self.tab_control.add(self.about_tab, text='About')
+        self.create_about_tab()
+
+    def create_about_tab(self):
+        frame = self.about_tab
+
+        # Style and padding
+        frame.configure(bg="#f0f4f8")
+
+        # Main title
+        ttk.Label(frame, text="About SwiftType", font=("Helvetica", 20, "bold")).pack(pady=(30, 10))
+
+        # App Info Section
+        info_frame = ttk.Frame(frame, padding=20)
+        info_frame.pack(pady=5)
+
+        info_text = (
+            "App Name: SwiftType - Typing Tutor\n"
+            "Version: 1.0.0\n"
+            "Developer: TUBUN JANA(Computer Science Student)\n"
+            "Email: tubun.official@gmail.com\n"
+            "Website: https://SwiftType.com\n"
+            "License: MIT License\n"
+        )
+        ttk.Label(info_frame, text=info_text, font=("Arial", 10), justify="left").pack()
+
+        # Logo section
+        logo_path = resource_path("assets/logo.png")
+        if os.path.exists(logo_path):
+            img = Image.open(logo_path)
+            img = img.resize((100, 100), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+            logo_label = tk.Label(frame, image=photo, bg="#f0f4f8")
+            logo_label.image = photo  # Keep a reference
+            logo_label.pack(pady=5)
+
+        # Separator
+        ttk.Separator(frame, orient='horizontal').pack(fill='x', padx=30, pady=5)
+
+        # Description
+        desc_text = (
+            "SwiftType is a lightweight and interactive typing tutor that helps improve speed and accuracy.\n"
+            "Track your progress, set time goals, and view detailed dashboards tailored to your performance."
+        )
+        ttk.Label(frame, text=desc_text, font=("Arial", 11), justify="center", wraplength=700).pack(pady=10)
+
+        # Separator
+        ttk.Separator(frame, orient='horizontal').pack(fill='x', padx=30, pady=2)
+
+        # Support Section
+        support_frame = ttk.LabelFrame(frame, text="Support", padding=20)
+        support_frame.pack(pady=2, padx=20, fill="x")
+
+        ttk.Label(support_frame, text="Need help or want to report a bug?", font=("Arial", 11)).pack(anchor="w", pady=2)
+        ttk.Label(support_frame, text="📧 Email: support.swifttype@swifttype.com", font=("Arial", 11)).pack(anchor="w", pady=2)
+        ttk.Label(support_frame, text="🌐 Visit: https://swifttype.com/support", font=("Arial", 11)).pack(anchor="w", pady=2)
+        ttk.Label(support_frame, text="💬 Join our Community Forum: https://forum.swifttype.com", font=("Arial", 11)).pack(anchor="w", pady=2)
+
+        # Footer
+        ttk.Label(frame, text="© 2025 SwiftType. All rights reserved.", font=("Arial", 10, "italic")).pack()
+        ttk.Label(frame, text="Thank you for using SwiftType!", font=("Arial", 10, "italic")).pack()
+
 
     def setup_styles(self):
         style = ttk.Style()
@@ -63,7 +127,7 @@ class TypingTutorApp:
     def create_practice_widgets(self):
         frame = self.practice_tab
 
-        ttk.Label(frame, text="Welcome to Typing Tutor", font=("Arial", 16)).pack(pady=10)
+        ttk.Label(frame, text="Welcome to SwiftType Tutor", font=("Arial", 16)).pack(pady=10)
 
         self.user_listbox = tk.Listbox(frame, height=5)
         self.user_listbox.pack()
@@ -146,10 +210,20 @@ class TypingTutorApp:
         button_frame.pack(pady=10)
 
         ttk.Button(button_frame, text="Restart", command=self.restart_session).pack(side=tk.LEFT, padx=10)
-        ttk.Button(button_frame, text="End Session", command=self.end_session).pack(side=tk.LEFT, padx=10)
+        ttk.Button(button_frame, text="End Session", command=self.end_session_by_button_click).pack(side=tk.LEFT, padx=10)
 
         self.update_timer()
-    
+        
+
+    def end_session_by_button_click(self):
+        if self.time_limit > 0:
+            if messagebox.askyesno("Confirm", "Are you sure you want to end the session early?"):
+                # Stop the timer
+                self.time_limit = 0
+        else:
+            messagebox.showinfo("Info", "No session is currently running.")
+
+
     def restart_session(self):
         self.clear_practice_tab()
         self.username = ""  # Reset username to allow new or same user
@@ -193,24 +267,40 @@ class TypingTutorApp:
 
     
     def end_session(self):
-        self.session.end(self.text_entry.get("1.0", "end-1c"))
+        print("Ending session... Time is :",self.time_limit)
 
+        # Disable typing
+        self.text_entry.config(state='disabled')
+
+        # Mark session as ended
+        typed_text = self.text_entry.get("1.0", "end-1c")
+        self.session.end(typed_text)
+
+        # Collect session data
         session_data = {
             'lesson': self.lesson_text,
             'wpm': self.session.calculate_wpm(),
             'accuracy': self.session.calculate_accuracy(),
             'errors': self.session.get_error_count(),
             'time': self.time_limit,
-            'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # ✅ Add timestamp here
+            'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
+        # Save to user history
         self.user_manager.save_user_history(self.username, session_data)
 
-        messagebox.showinfo(
-            "Session Complete",
-            f"Session finished!\nWPM: {session_data['wpm']}\nAccuracy: {session_data['accuracy']}%"
+        # Show warning popup
+        messagebox.showwarning(
+            "Session Ended",
+            f"Session was manually ended.\n\n"
+            f"WPM: {session_data['wpm']}\n"
+            f"Accuracy: {session_data['accuracy']}%\n"
+            f"Errors: {session_data['errors']}"
         )
+
+        # Redirect to dashboard
         self.create_dashboard()
+
 
     def select_existing_user(self):
         selected = self.user_listbox.curselection()
@@ -298,7 +388,7 @@ class TypingTutorApp:
 
         ttk.Label(
             frame, 
-            text="⚠️ Lesson text must be 50–500 characters, no blank lines, no double spaces, start with a capital letter and end with a punctuation.",
+            text="⚠️ Lesson text must be 50–5000 characters, no blank lines, no double spaces, start with a capital letter and end with a punctuation.",
             wraplength=800,
             foreground="red",
             font=("Arial", 10, "italic")
@@ -322,7 +412,7 @@ class TypingTutorApp:
         self.new_lesson_textbox.pack(pady=5)
 
         # Warning note
-        ttk.Label(frame, text="Note: Keep lesson text between 50 and 500 characters.", foreground="red").pack()
+        ttk.Label(frame, text="Note: Keep lesson text between 50 and 5000 characters.", foreground="red").pack()
 
         # Save new lesson
         ttk.Button(frame, text="Save Lesson", command=self.save_new_lesson).pack(pady=10)
@@ -351,8 +441,8 @@ class TypingTutorApp:
         text = self.new_lesson_textbox.get("1.0", tk.END).strip()
 
         # Validation checks
-        if not (50 <= len(text) <= 500):
-            messagebox.showwarning("Invalid Length", "Lesson text must be between 50 and 500 characters.")
+        if not (50 <= len(text) <= 5000):
+            messagebox.showwarning("Invalid Length", "Lesson text must be between 50 and 5000 characters.")
             return
 
         if "  " in text:
