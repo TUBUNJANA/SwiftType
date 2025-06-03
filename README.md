@@ -1,4 +1,8 @@
-# 🧠 Typing Tutor
+# 🧠 SwiftType
+
+<p align="center">
+  <img src="assets/logo.png" alt="SkillSync Logo" width="200"/>
+</p>
 
 A modern, interactive typing tutor built in Python using Tkinter. It helps users practice typing, track progress, and visualize performance through a built-in dashboard.
 
